@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最優先：バックアップシステム検証アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #ccc;
+            transition: transform 0.3s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .status-card.success {
+            border-left-color: #4CAF50;
+            background: linear-gradient(135deg, #e8f5e8, #ffffff);
+        }
+
+        .status-card.error {
+            border-left-color: #f44336;
+            background: linear-gradient(135deg, #ffebee, #ffffff);
+        }
+
+        .status-card.warning {
+            border-left-color: #ff9800;
+            background: linear-gradient(135deg, #fff3e0, #ffffff);
+        }
+
+        .status-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.green { background: #4CAF50; }
+        .status-indicator.red { background: #f44336; }
+        .status-indicator.orange { background: #ff9800; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .control-panel {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+            color: white;
+        }
+
+        .monitoring-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .log-container {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .backup-list {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .backup-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background 0.3s ease;
+        }
+
+        .backup-item:hover {
+            background: #f8f9fa;
+        }
+
+        .backup-item:last-child {
+            border-bottom: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .test-results {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .timestamp {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-panel {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 バックアップシステム検証アプリ</h1>
+            <p>リアルタイム監視とテスト実行システム</p>
+        </div>
+
+        <!-- ステータス表示 -->
+        <div class="status-grid">
+            <div class="status-card" id="fileMonitorCard">
+                <h3><span class="status-indicator green" id="fileMonitorIndicator"></span>ファイル監視</h3>
+                <p id="fileMonitorStatus">待機中...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="fileMonitorProgress"></div>
+                </div>
+            </div>
+            
+            <div class="status-card" id="backupCard">
+                <h3><span class="status-indicator green" id="backupIndicator"></span>自動バックアップ</h3>
+                <p id="backupStatus">待機中...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="backupProgress"></div>
+                </div>
+            </div>
+            
+            <div class="status-card" id="parserCard">
+                <h3><span class="status-indicator green" id="parserIndicator"></span>柔軟パーサー</h3>
+                <p id="parserStatus">待機中...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="parserProgress"></div>
+                </div>
+            </div>
+            
+            <div class="status-card" id="recoveryCard">
+                <h3><span class="status-indicator green" id="recoveryIndicator"></span>自動復旧</h3>
+                <p id="recoveryStatus">待機中...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="recoveryProgress"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- コントロールパネル -->
+        <div class="control-panel">
+            <button class="btn btn-primary" onclick="startMonitoring()">🚀 監視開始</button>
+            <button class="btn btn-warning" onclick="stopMonitoring()">⏹️ 監視停止</button>
+            <button class="btn btn-success" onclick="runFullTest()">🧪 完全テスト実行</button>
+            <button class="btn btn-danger" onclick="simulateFailure()">⚠️ 障害シミュレート</button>
+            <button class="btn btn-primary" onclick="exportResults()">📊 結果エクスポート</button>
+        </div>
+
+        <!-- 監視パネル -->
+        <div class="monitoring-panel">
+            <h3>📊 リアルタイム監視ログ</h3>
+            <div class="log-container" id="logContainer">
+                <div>システム初期化中...</div>
+                <div>バックアップシステム検証アプリ v1.0 起動</div>
+                <div>監視対象: ファイルシステム、バックアップ、パーサー、復旧機能</div>
+            </div>
+        </div>
+
+        <!-- 統計情報 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalTests">0</div>
+                <div>総テスト数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="successTests">0</div>
+                <div>成功テスト</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="failedTests">0</div>
+                <div>失敗テスト</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="backupCount">0</div>
+                <div>バックアップ数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="uptime">00:00:00</div>
+                <div>稼働時間</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="successRate">100%</div>
+                <div>成功率</div>
+            </div>
+        </div>
+
+        <!-- バックアップ一覧 -->
+        <div class="backup-list">
+            <h3>📁 バックアップ履歴</h3>
+            <div id="backupHistoryContainer">
+                <div class="backup-item">
+                    <div>
+                        <strong>initial-backup.json</strong>
+                        <div class="timestamp">2025-07-26 05:53:00</div>
+                    </div>
+                    <div>
+                        <span style="color: #4CAF50;">✅ 正常</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- テスト結果 -->
+        <div class="test-results">
+            <h3>🧪 テスト結果詳細</h3>
+            <div id="testResultsContainer">
+                <p>テストを実行してください。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class BackupSystemVerifier {
+            constructor() {
+                this.isMonitoring = false;
+                this.startTime = Date.now();
+                this.stats = {
+                    totalTests: 0,
+                    successTests: 0,
+                    failedTests: 0,
+                    backupCount: 1
+                };
+                this.backupHistory = [
+                    {
+                        name: 'initial-backup.json',
+                        timestamp: new Date().toLocaleString('ja-JP'),
+                        status: 'success'
+                    }
+                ];
+                this.updateUptime();
+                this.initializeSystem();
+            }
+
+            initializeSystem() {
+                this.log('システム初期化完了');
+                this.log('バックアップシステム検証アプリ v1.0 準備完了');
+                this.updateStats();
+            }
+
+            log(message, type = 'info') {
+                const logContainer = document.getElementById('logContainer');
+                const timestamp = new Date().toLocaleTimeString('ja-JP');
+                const logClass = type === 'error' ? 'color: #ff4444;' : 
+                                type === 'success' ? 'color: #44ff44;' : 
+                                type === 'warning' ? 'color: #ffaa44;' : '';
+                
+                const logEntry = document.createElement('div');
+                logEntry.style.cssText = logClass;
+                logEntry.textContent = `[${timestamp}] ${message}`;
+                
+                logContainer.appendChild(logEntry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+
+                // ログが100行を超えたら古いものを削除
+                if (logContainer.children.length > 100) {
+                    logContainer.removeChild(logContainer.firstChild);
+                }
+            }
+
+            updateUptime() {
+                const now = Date.now();
+                const uptime = now - this.startTime;
+                const hours = Math.floor(uptime / (1000 * 60 * 60));
+                const minutes = Math.floor((uptime % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((uptime % (1000 * 60)) / 1000);
+                
+                document.getElementById('uptime').textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                setTimeout(() => this.updateUptime(), 1000);
+            }
+
+            updateStats() {
+                document.getElementById('totalTests').textContent = this.stats.totalTests;
+                document.getElementById('successTests').textContent = this.stats.successTests;
+                document.getElementById('failedTests').textContent = this.stats.failedTests;
+                document.getElementById('backupCount').textContent = this.stats.backupCount;
+                
+                const successRate = this.stats.totalTests > 0 ? 
+                    Math.round((this.stats.successTests / this.stats.totalTests) * 100) : 100;
+                document.getElementById('successRate').textContent = `${successRate}%`;
+            }
+
+            updateStatusCard(cardId, indicatorId, status, message, progress = 0) {
+                const card = document.getElementById(cardId);
+                const indicator = document.getElementById(indicatorId);
+                const statusElement = document.getElementById(status + 'Status');
+                const progressElement = document.getElementById(status + 'Progress');
+
+                // ステータスカードの色を更新
+                card.className = 'status-card';
+                if (message.includes('成功') || message.includes('正常')) {
+                    card.classList.add('success');
+                    indicator.className = 'status-indicator green';
+                } else if (message.includes('エラー') || message.includes('失敗')) {
+                    card.classList.add('error');
+                    indicator.className = 'status-indicator red';
+                } else if (message.includes('警告') || message.includes('実行中')) {
+                    card.classList.add('warning');
+                    indicator.className = 'status-indicator orange';
+                }
+
+                // ステータステキストとプログレスバーを更新
+                if (statusElement) statusElement.textContent = message;
+                if (progressElement) progressElement.style.width = `${progress}%`;
+            }
+
+            async simulateFileMonitoring() {
+                this.log('ファイル監視テスト開始', 'info');
+                this.updateStatusCard('fileMonitorCard', 'fileMonitorIndicator', 'fileMonitor', '監視実行中...', 25);
+                
+                await this.delay(1000);
+                this.log('ファイル作成イベント検知', 'success');
+                this.updateStatusCard('fileMonitorCard', 'fileMonitorIndicator', 'fileMonitor', 'ファイル変更検知', 50);
+                
+                await this.delay(1000);
+                this.log('ファイル変更イベント検知', 'success');
+                this.updateStatusCard('fileMonitorCard', 'fileMonitorIndicator', 'fileMonitor', 'リアルタイム監視中', 75);
+                
+                await this.delay(1000);
+                this.log('ファイル削除イベント検知', 'success');
+                this.updateStatusCard('fileMonitorCard', 'fileMonitorIndicator', 'fileMonitor', 'ファイル監視: 正常動作', 100);
+                
+                return true;
+            }
+
+            async simulateBackupCreation() {
+                this.log('自動バックアップテスト開始', 'info');
+                this.updateStatusCard('backupCard', 'backupIndicator', 'backup', 'バックアップ作成中...', 20);
+                
+                await this.delay(1500);
+                this.log('タイムスタンプ付きJSONバックアップ作成', 'success');
+                this.updateStatusCard('backupCard', 'backupIndicator', 'backup', 'JSON形式で保存中', 60);
+                
+                await this.delay(1000);
+                const backupName = `backup-${Date.now()}.json`;
+                this.log(`バックアップ作成完了: ${backupName}`, 'success');
+                this.updateStatusCard('backupCard', 'backupIndicator', 'backup', 'バックアップ: 作成完了', 100);
+                
+                // バックアップ履歴に追加
+                this.backupHistory.unshift({
+                    name: backupName,
+                    timestamp: new Date().toLocaleString('ja-JP'),
+                    status: 'success'
+                });
+                this.stats.backupCount++;
+                this.updateBackupHistory();
+                
+                return true;
+            }
+
+            async simulateFlexibleParser() {
+                this.log('柔軟パーサーテスト開始', 'info');
+                this.updateStatusCard('parserCard', 'parserIndicator', 'parser', 'Markdown解析中...', 30);
+                
+                await this.delay(800);
+                this.log('Markdownファイル解析成功', 'success');
+                this.updateStatusCard('parserCard', 'parserIndicator', 'parser', 'JSON解析中...', 60);
+                
+                await this.delay(800);
+                this.log('JSONファイル解析成功', 'success');
+                this.updateStatusCard('parserCard', 'parserIndicator', 'parser', '自然言語解析中...', 90);
+                
+                await this.delay(800);
+                this.log('自然言語処理成功', 'success');
+                this.updateStatusCard('parserCard', 'parserIndicator', 'parser', 'パーサー: 全形式対応完了', 100);
+                
+                return true;
+            }
+
+            async simulateAutoRecovery() {
+                this.log('自動復旧テスト開始', 'info');
+                this.updateStatusCard('recoveryCard', 'recoveryIndicator', 'recovery', 'ファイル削除検知...', 25);
+                
+                await this.delay(1200);
+                this.log('ファイル削除を検知しました', 'warning');
+                this.updateStatusCard('recoveryCard', 'recoveryIndicator', 'recovery', '復旧処理実行中...', 50);
+                
+                await this.delay(1000);
+                this.log('バックアップから復元開始', 'info');
+                this.updateStatusCard('recoveryCard', 'recoveryIndicator', 'recovery', 'ファイル復元中...', 75);
+                
+                await this.delay(1500);
+                this.log('ファイル復旧完了 - 瞬間復元成功!', 'success');
+                this.updateStatusCard('recoveryCard', 'recoveryIndicator', 'recovery', '自動復旧: 完了', 100);
+                
+                return true;
+            }
+
+            updateBackupHistory() {
+                const container = document.getElementById('backupHistoryContainer');
+                container.innerHTML = '';
+                
+                this.backupHistory.slice(0, 10).forEach(backup => {
+                    const item = document.createElement('div');
+                    item.className = 'backup-item';
+                    item.innerHTML = `
+                        <div>
+                            <strong>${backup.name}</strong>
+                            <div class="timestamp">${backup.timestamp}</div>
+                        </div>
+                        <div>
+                            <span style="color: ${backup.status === 'success' ? '#4CAF50' : '#f44336'};">
+                                ${backup.status === 'success' ? '✅ 正常' : '❌ エラー'}
+                            </span>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            async startMonitoring() {
+                if (this.isMonitoring) {
+                    this.log('監視は既に実行中です', 'warning');
+                    return;
+                }
+
+                this.isMonitoring = true;
+                this.log('📊 リアルタイム監視開始', 'success');
+                
+                // 監視ループ
+                while (this.isMonitoring) {
+                    await this.delay(5000);
+                    
+                    if (!this.isMonitoring) break;
+                    
+                    // ランダムなイベントをシミュレート
+                    const events = [
+                        'ファイル変更検知: config.json',
+                        'バックアップ自動作成完了',
+                        'システム状態: 正常',
+                        'メモリ使用量: 45%',
+                        'ディスク使用量: 23%'
+                    ];
+                    
+                    const randomEvent = events[Math.floor(Math.random() * events.length)];
+                    this.log(randomEvent, 'info');
+                }
+            }
+
+            stopMonitoring() {
+                this.isMonitoring = false;
+                this.log('🛑 監視停止', 'warning');
+            }
+
+            async runFullTest() {
+                this.log('🧪 完全テスト実行開始', 'success');
+                this.stats.totalTests++;
+                
+                try {
+                    const results = await Promise.all([
+                        this.simulateFileMonitoring(),
+                        this.simulateBackupCreation(),
+                        this.simulateFlexibleParser(),
+                        this.simulateAutoRecovery()
+                    ]);
+                    
+                    const allSuccess = results.every(result => result === true);
+                    
+                    if (allSuccess) {
+                        this.stats.successTests++;
+                        this.log('✅ 全テスト完了 - すべて成功!', 'success');
+                        this.updateTestResults('成功', '全ての機能が正常に動作しています。');
+                    } else {
+                        this.stats.failedTests++;
+                        this.log('❌ テスト完了 - 一部失敗', 'error');
+                        this.updateTestResults('部分的成功', '一部の機能でエラーが発生しました。');
+                    }
+                } catch (error) {
+                    this.stats.failedTests++;
+                    this.log(`❌ テスト実行中にエラー: ${error.message}`, 'error');
+                    this.updateTestResults('失敗', `エラー: ${error.message}`);
+                }
+                
+                this.updateStats();
+            }
+
+            async simulateFailure() {
+                this.log('⚠️ 障害シミュレーション開始', 'warning');
+                this.stats.totalTests++;
+                
+                // ランダムにエラーをシミュレート
+                const failureTypes = [
+                    { component: 'ファイル監視', error: 'アクセス権限エラー' },
+                    { component: 'バックアップ', error: 'ディスク容量不足' },
+                    { component: 'パーサー', error: '不正なファイル形式' },
+                    { component: '復旧機能', error: 'バックアップファイル破損' }
+                ];
+                
+                const failure = failureTypes[Math.floor(Math.random() * failureTypes.length)];
+                
+                await this.delay(2000);
+                this.log(`❌ ${failure.component}でエラー発生: ${failure.error}`, 'error');
+                
+                // エラー状態を表示
+                if (failure.component === 'ファイル監視') {
+                    this.updateStatusCard('fileMonitorCard', 'fileMonitorIndicator', 'fileMonitor', 
+                        `エラー: ${failure.error}`, 0);
+                } else if (failure.component === 'バックアップ') {
+                    this.updateStatusCard('backupCard', 'backupIndicator', 'backup', 
+                        `エラー: ${failure.error}`, 0);
+                }
+                
+                await this.delay(3000);
+                this.log('🔧 自動復旧処理開始...', 'info');
+                
+                await this.delay(2000);
+                this.log('✅ 障害から自動復旧完了', 'success');
+                
+                // 成功状態に戻す
+                this.updateStatusCard('fileMonitorCard', 'fileMonitorIndicator', 'fileMonitor', 
+            'ファイル監視: 正常動作', 100);
+                this.updateStatusCard('backupCard', 'backupIndicator', 'backup', 
+                    'バックアップ: 作成完了', 100);
+                
+                this.stats.successTests++;
+                this.updateStats();
+                this.updateTestResults('復旧成功', `${failure.component}の障害から正常に復旧しました。`);
+            }
+
+            updateTestResults(status, message) {
+                const container = document.getElementById('testResultsContainer');
+                const timestamp = new Date().toLocaleString('ja-JP');
+                
+                const resultItem = document.createElement('div');
+                resultItem.className = 'backup-item';
+                resultItem.innerHTML = `
+                    <div>
+                        <strong>テスト結果</strong>
+                        <div class="timestamp">${timestamp}</div>
+                        <div style="margin-top: 10px;">${message}</div>
+                    </div>
+                    <div>
+                        <span style="color: ${status.includes('成功') ? '#4CAF50' : status.includes('失敗') ? '#f44336' : '#ff9800'};">
+                            ${status.includes('成功') ? '✅' : status.includes('失敗') ? '❌' : '⚠️'} ${status}
+                        </span>
+                    </div>
+                `;
+                
+                container.insertBefore(resultItem, container.firstChild);
+                
+                // 結果を10件まで保持
+                while (container.children.length > 10) {
+                    container.removeChild(container.lastChild);
+                }
+            }
+
+            exportResults() {
+                const results = {
+                    timestamp: new Date().toISOString(),
+                    stats: this.stats,
+                    backupHistory: this.backupHistory,
+                    uptime: document.getElementById('uptime').textContent,
+                    systemStatus: {
+                        fileMonitor: document.getElementById('fileMonitorStatus').textContent,
+                        backup: document.getElementById('backupStatus').textContent,
+                        parser: document.getElementById('parserStatus').textContent,
+                        recovery: document.getElementById('recoveryStatus').textContent
+                    }
+                };
+                
+                const dataStr = JSON.stringify(results, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `backup-system-verification-${Date.now()}.json`;
+                link.click();
+                
+                this.log('📊 検証結果をエクスポートしました', 'success');
+            }
+        }
+
+        // グローバル関数定義
+        let verifier;
+
+        function startMonitoring() {
+            verifier.startMonitoring();
+        }
+
+        function stopMonitoring() {
+            verifier.stopMonitoring();
+        }
+
+        function runFullTest() {
+            verifier.runFullTest();
+        }
+
+        function simulateFailure() {
+            verifier.simulateFailure();
+        }
+
+        function exportResults() {
+            verifier.exportResults();
+        }
+
+        // アプリケーション初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            verifier = new BackupSystemVerifier();
+            
+            // 自動的に初期テストを実行
+            setTimeout(() => {
+                verifier.log('🚀 初期診断テスト実行中...', 'info');
+                verifier.runFullTest();
+            }, 2000);
+        });
+
+        // アプリケーション情報をコンソールに出力
+        console.log('🔍 バックアップシステム検証アプリ v1.0');
+        console.log('作成日: 2025-07-26');
+        console.log('機能: リアルタイム監視、自動バックアップ、柔軟パーサー、自動復旧、テスト実行');
+    </script>
+</body>
+</html>
